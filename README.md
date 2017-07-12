@@ -26,10 +26,10 @@ aws --profile amazing-aws ec2 describe-instances
 
 Your keys/profile can also be used in normal AWS scripting SDK's (I recommend using profiles rather than keys to prevent issues when they expire)
 
-###Keys expire###
+### Keys expire
 Your keys will be valid for 1 hour. After this, simply run the inital command as above. This time, you will only be asked for your  MFA code as your original details have been stored against that profile or added to a default block for future use (profile and username are kept for other profiles too)
 
-###Adding other profiles
+### Adding other profiles
 Once you have added your first profile, your username and profile specified will be stored as defaults for future commands.
 
 If you now run 
@@ -40,7 +40,7 @@ If you now run
 You should now only be prompted for the account number, role to use and MFA code. 
 
 
-##Overiding stored defaults or running the command with more control
+## Overiding stored defaults or running the command with more control
 On top of being able to add your profiles easily with the easy setup, you can also specify any of the parameters on command run.
 
 If the profile has already been configured, account number and last role will be updated to use new values supplied (you can supply what you want, i.e account number and role or just role etc)
@@ -55,7 +55,7 @@ To run a command in full, you can use the following arguments.
 
 ``` --role ``` - Role to switch to (overrides last_role so will be used for each call after this unless specified)
 
-###Example
+### Example
 ```
 ./switchy.py --profile crprod --account 2313213123 --role AmazingAccess --username boaty.mcboat --name new-awesome-profile
 ```
