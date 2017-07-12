@@ -110,14 +110,12 @@ def get_new_session(sts, serial):
         return session_token
     except ClientError as e:
         print("MFA Code is not valid")
-        print(e)
         quit()
 
 
 def write_aws_config(aws_config, config_file):
     """Write updates to the Config object in the specified file."""
     config_file_path = os.path.expanduser(config_file)
-    print("Writing!")
     with open(config_file_path, 'w+') as fh:
         aws_config.write(fh)
 
@@ -365,8 +363,8 @@ if not x.list:
         sts = s.client('sts')
         session_token = get_new_session(sts, serial)
 
-        print("""Session token obtained for {}... Getting switch role session \
-        for {}({}) """.format(x.profile, x.name, x.account))
+        # print("""Session token obtained for {}... Getting switch role session \
+        # for {}({}) """.format(x.profile, x.name, x.account))
 
         sts = s.client(
             'sts',
@@ -401,7 +399,7 @@ if not x.list:
     # see whats in use already
     write_aws_config(aws_credentials, config_file=paths['creds'])
     print("""Switch role completed - You can now use --profile {} in \
-    your aws cli commands""".format(x.name))
+your aws cli commands or in AWS API's""".format(x.name))
 else:
     if x.all:
         print("Listing All Profiles")
