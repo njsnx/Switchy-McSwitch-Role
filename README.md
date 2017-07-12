@@ -1,4 +1,4 @@
-#Switchy McSwitch Roles 
+# Switchy McSwitch Roles 
 Easy Peasy CLI access to switch roles.
 
 Using AWS switch roles has never been easier thanks to **#SwitchyMcSwitchRoles**, running this simple script and telling it what role you want to use will generate you a set of keys you can use for 1 hour for roles we can switch too.
