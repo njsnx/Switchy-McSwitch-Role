@@ -57,7 +57,7 @@ To run a command in full, you can use the following arguments.
 
 ### Example
 ```
-./switchy.py --profile crprod --account 2313213123 --role AmazingAccess --username boaty.mcboat --name new-awesome-profile
+./switchy.py --profile <profile-name> --account 2313213123 --role AmazingAccess --username boaty.mcboat --name new-awesome-profile
 ```
 You will be asked for an MFA code and end up with the same result as before - you can now just call the command again, specifing ``` --name ``` only to renew your keys.
 
