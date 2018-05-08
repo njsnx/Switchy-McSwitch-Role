@@ -36,7 +36,7 @@
     },
     {
         "accept": "--name",
-        "required": true,
+        "required": false,
         "help": "What to call the new profile"
     },
     {
@@ -47,11 +47,19 @@
     {
         "accept": "--all",
         "required": false,
+        "empty": true,
         "help": "Expired profiles"
+    },
+    {
+        "accept": "--debug",
+        "required": false,
+        "help": "Enable Debug Logging",
+        "empty": true
     },
     {
         "accept": "--list",
         "required": false,
+        "empty": true,
         "help": "List profiles currently available to use"
     },
     {

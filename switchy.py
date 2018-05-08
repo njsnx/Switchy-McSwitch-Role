@@ -6,7 +6,7 @@ import argparse
 import boto3
 import botocore
 import errno
-
+import sys
 try:
     import configparser
 except Exception:
@@ -16,6 +16,7 @@ from botocore.exceptions import ClientError
 import os
 import json
 import datetime
+import logging
 
 from dateutil.tz import tzutc
 
@@ -25,10 +26,33 @@ class SwitchyMcSwitchRole(object):
 
     def __init__(self, config_file='./configuration.json'):
         """Init Method."""
+        
         self.configuration_file = self.load_config(config_file)
         self.aws_config_parts = self.configuration_file['configuration']['aws_config']
-
         self.setup_argparse()
+        self.setup_logging()
+
+    def setup_logging(self):
+
+        # logging.getLogger('boto').setLevel(logging.CRITICAL)
+        # logging.getLogger('botocore').setLevel(logging.CRITICAL)
+        level = logging.INFO
+        if self.passed_arguments.debug:
+            level = logging.DEBUG
+
+        self.log = logging.getLogger(__name__)
+        self.log.setLevel(level)
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        handler.setLevel(logging.INFO)
+
+        formatter = logging.Formatter("[%(asctime)s] %(module)s::%(funcName)s::%(lineno)d %(message)s")
+        
+        handlerDebug = logging.StreamHandler(sys.stdout)
+        handlerDebug.setFormatter(formatter)
+        handlerDebug.setLevel(logging.DEBUG)
+        self.log.addHandler(handlerDebug)
+        # "[%(asctime)s] p%(process)s {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s','%m-%d %H:%M:%S"
 
     def setup_argparse(self):
         """Setup ArgParse."""
@@ -37,21 +61,21 @@ class SwitchyMcSwitchRole(object):
         # Check all the arguments passed in
         for a in arguments:
             # Add the argument to the parser
-            if a['accept'] is '--list' or a['accept'] is '--all':
-                parser.add_argument(
-                    a['accept'],
-                    required=a['required'],
-                    action='store_true',
-                    help=a['help']
-                )
+            allow_empty = a.get('empty', None)
+            argument_kwords = {
+                "required": a['required'],
+                "help": a['help']
+            }
+            if allow_empty:
+                argument_kwords['action'] = 'store_true'
             else:
-                parser.add_argument(
-                    a['accept'],
-                    required=a['required'],
-                    metavar='<arg>',
-                    type=str,
-                    help=a['help']
-                )
+                argument_kwords['metavar'] = '<arg>'
+                argument_kwords['type'] = str
+
+            parser.add_argument(
+                a['accept'],
+                **argument_kwords
+            )
 
             # # Return the parsed arguments
         self.passed_arguments = parser.parse_args()
@@ -86,7 +110,7 @@ class SwitchyMcSwitchRole(object):
             )
             return session_token
         except ClientError:
-            print("MFA Code is not valid")
+            self.log.info("MFA Code is not valid")
             quit()
 
     def get_config_files(self):
@@ -140,8 +164,7 @@ class SwitchyMcSwitchRole(object):
             sts = None
             role_token = None
             to_check = 'switch-role ' + self.passed_arguments.profile
-            print("CHECKING")
-            print(to_check)
+
             if self.aws_credentials.has_section(to_check):
 
                 if self.aws_credentials.has_option(to_check, 'aws_session_token'):
@@ -159,25 +182,22 @@ class SwitchyMcSwitchRole(object):
                             )
                         )
                         role_token = self.get_role(profile=self.passed_arguments)
-                        role_got = True
-                        print("Role retrieved")
+                        if role_token:
+                            role_got = True
+                            self.log.debug("Role retrieved")
                     except Exception as e:
-                        print(e)
+                        self.log.error(e)
                         pass
 
+            self.write_aws_config(self.aws_config, config_file=self.paths['config'])
             if not role_got:
                 sts = s.client('sts')
                 session_token = self.get_new_session(sts, serial)
 
-                # print("""Session token obtained for {}... Getting switch role session \
-                # for {}({}) """.format(self.passed_arguments.profile, self.passed_arguments.name, self.passed_arguments.account))
-
-                sts = s.client(
+                self.sts = s.client(
                     'sts',
                     aws_access_key_id=session_token['Credentials']['AccessKeyId'],
-                    aws_secret_access_key=session_token[
-                        'Credentials'
-                    ]['SecretAccessKey'],
+                    aws_secret_access_key=session_token['Credentials']['SecretAccessKey'],
                     aws_session_token=session_token['Credentials']['SessionToken']
                 )
 
@@ -185,15 +205,15 @@ class SwitchyMcSwitchRole(object):
                 # if self.passed_arguments.account is set, use that for arn, if not get from config,
                 # if not in config, ask for it and update the config
 
-                role_token = role_token = self.get_role(profile=self.passed_arguments)
-
                 self.aws_credentials = self.update_aws_config(
                     "credentials",
                     self.aws_credentials,
                     "switch-role " + self.passed_arguments.profile,
                     session_token
                 )
-            # if role_token:
+
+            role_token = self.get_role(profile=self.passed_arguments)
+
             self.aws_credentials = self.update_aws_config(
                 "credentials",
                 self.aws_credentials,
@@ -208,12 +228,12 @@ class SwitchyMcSwitchRole(object):
                 config_file=self.paths['creds']
             )
 
-            print("""Switch role completed - You can now use --profile {} in your aws cli commands or in AWS API's""".format(self.passed_arguments.name))
+            self.log.info("""Switch role completed - You can now use --profile {} in your aws cli commands or in AWS API's""".format(self.passed_arguments.name))
         else:
             if self.passed_arguments.all:
-                print("Listing All Profiles")
+                self.log.info("Listing All Profiles")
             else:
-                print("Listing Valid Profiles")
+                self.log.info("Listing Valid Profiles")
 
             expired = []
             valid = []
@@ -229,7 +249,7 @@ class SwitchyMcSwitchRole(object):
                                 msg = "\033[91mExpired\033[00m"
                                 expired.append("{} | {}".format(msg, section[8:]))
                             else:
-                                diff = (expire - now).seconds / 60
+                                diff = int((expire - now).seconds / 60)
                                 if diff < 15:
                                     msg = "\033[33m{} minutes remaining\
                                      \033[00m".format(diff)
@@ -241,15 +261,15 @@ class SwitchyMcSwitchRole(object):
 
             if self.passed_arguments.all:
                 for n in expired:
-                    print(n)
+                    self.log.info(n)
 
             for i in valid:
-                print(i)
+                self.log.info(i)
 
     def write_aws_config(self, aws_config, config_file):
         """Write updates to the Config object in the specified file."""
-        print("Writing file " + config_file)
-        print(aws_config)
+        self.log.debug("Writing file " + config_file)
+        
         config_file_path = os.path.expanduser(config_file)
         with open(config_file_path, 'w+') as fh:
             aws_config.write(fh)
@@ -263,22 +283,23 @@ class SwitchyMcSwitchRole(object):
         Returns:
             boto3.sts.assumed_role: Used later
         """
+        print(profile)
         arg_list = {
             "RoleArn": 'arn:aws:iam::{}:role/{}'.format(
-                profile.account,
-                profile.role
+                self.passed_arguments.account,
+                self.passed_arguments.role
             ),
             "RoleSessionName": 'SwitchRole',
             "DurationSeconds": 3600
         }
-
+        self.log.debug(arg_list)
         if profile.external_id:
             arg_list['ExternalId'] = profile.external_id
-            try:
-                return self.sts.assume_role(**arg_list)
-            except botocore.exceptions.ClientError as e:
-                print(e)
-                return None
+        try:
+            return self.sts.assume_role(**arg_list)
+        except botocore.exceptions.ClientError as e:
+            self.log.debug(e)
+            return None
 
     def mkdir_p(self, path):
         """Make Directory."""
@@ -308,8 +329,8 @@ class SwitchyMcSwitchRole(object):
         # Check if part to update is config or creds
         with open('./configuration.json') as f:
             config_parts = json.load(f)['configuration']['aws_config']
-        print(part)
-        print(profile)
+        self.log.debug(part)
+        self.log.debug(profile)
         argument_dict = vars(self.passed_arguments)
         if part == "default":
 
@@ -348,7 +369,7 @@ class SwitchyMcSwitchRole(object):
 
         if part == "config":
             if not configuration.has_section(profile):
-                print("Adding section " + profile)
+                self.log.debug("Adding section " + profile)
                 configuration.add_section(profile)
 
             configuration.set(profile, 'output', "json")
@@ -356,8 +377,8 @@ class SwitchyMcSwitchRole(object):
 
             for config_part, config in config_parts['config'].items():
                 argument = argument_dict[config['arg']]
-                print(configuration.options(profile))
-                print(argument)
+                self.log.debug(configuration.options(profile))
+                self.log.debug(argument)
                 if not argument and configuration.has_option(profile, config_part):
                     self.passed_arguments.role = configuration.get(profile, config_part)
                 elif argument and configuration.has_option(profile, config_part):
@@ -385,11 +406,11 @@ class SwitchyMcSwitchRole(object):
 
             if not configuration.has_section(profile):
                 configuration.add_section(profile)
-
+            self.log.debug("We found config update")
+            self.log.debug(config_update)
             for part, value in cred_parts.items():
 
-                print("We found config update")
-                print(config_update)
+                
                 if config_update:
 
                     if value == 'Expiration':
@@ -405,10 +426,8 @@ class SwitchyMcSwitchRole(object):
                             part,
                             config_update['Credentials'][value]
                         )
-                        print("Hey from creds")
-                        print(configuration.get(profile, part))
         try:
-            print(configuration.options(profile))
+            self.log.debug(configuration.options(profile))
         except:
             pass
 
