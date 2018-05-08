@@ -130,7 +130,7 @@ class SwitchyMcSwitchRole(object):
                 account = str(e).split('::')[2].split(":")[0]
 
             serial = "arn:aws:iam::{}:mfa/{}".format(account, self.passed_arguments.username)
-            self.aws_conifg = self.update_aws_config(
+            self.aws_config = self.update_aws_config(
                 "config",
                 self.aws_config,
                 "profile " + self.passed_arguments.name,
@@ -140,7 +140,10 @@ class SwitchyMcSwitchRole(object):
             sts = None
             role_token = None
             to_check = 'switch-role ' + self.passed_arguments.profile
+            print("CHECKING")
+            print(to_check)
             if self.aws_credentials.has_section(to_check):
+
                 if self.aws_credentials.has_option(to_check, 'aws_session_token'):
                     try:
                         self.sts = s.client(
@@ -157,7 +160,7 @@ class SwitchyMcSwitchRole(object):
                         )
                         role_token = self.get_role(profile=self.passed_arguments)
                         role_got = True
-
+                        print("Role retrieved")
                     except Exception as e:
                         print(e)
                         pass
@@ -184,7 +187,7 @@ class SwitchyMcSwitchRole(object):
 
                 role_token = role_token = self.get_role(profile=self.passed_arguments)
 
-                self.   aws_credentials = self.update_aws_config(
+                self.aws_credentials = self.update_aws_config(
                     "credentials",
                     self.aws_credentials,
                     "switch-role " + self.passed_arguments.profile,
@@ -200,9 +203,12 @@ class SwitchyMcSwitchRole(object):
 
             # load arguments
             # see whats in use already
-            self.write_aws_config(self.aws_credentials, config_file=self.paths['creds'])
-            print("""Switch role completed - You can now use --profile {} in \
-        your aws cli commands or in AWS API's""".format(self.passed_arguments.name))
+            self.write_aws_config(
+                self.aws_credentials,
+                config_file=self.paths['creds']
+            )
+
+            print("""Switch role completed - You can now use --profile {} in your aws cli commands or in AWS API's""".format(self.passed_arguments.name))
         else:
             if self.passed_arguments.all:
                 print("Listing All Profiles")
@@ -242,7 +248,7 @@ class SwitchyMcSwitchRole(object):
 
     def write_aws_config(self, aws_config, config_file):
         """Write updates to the Config object in the specified file."""
-        print("Writing file")
+        print("Writing file " + config_file)
         print(aws_config)
         config_file_path = os.path.expanduser(config_file)
         with open(config_file_path, 'w+') as fh:
@@ -302,7 +308,8 @@ class SwitchyMcSwitchRole(object):
         # Check if part to update is config or creds
         with open('./configuration.json') as f:
             config_parts = json.load(f)['configuration']['aws_config']
-
+        print(part)
+        print(profile)
         argument_dict = vars(self.passed_arguments)
         if part == "default":
 
@@ -341,6 +348,7 @@ class SwitchyMcSwitchRole(object):
 
         if part == "config":
             if not configuration.has_section(profile):
+                print("Adding section " + profile)
                 configuration.add_section(profile)
 
             configuration.set(profile, 'output', "json")
@@ -348,7 +356,8 @@ class SwitchyMcSwitchRole(object):
 
             for config_part, config in config_parts['config'].items():
                 argument = argument_dict[config['arg']]
-
+                print(configuration.options(profile))
+                print(argument)
                 if not argument and configuration.has_option(profile, config_part):
                     self.passed_arguments.role = configuration.get(profile, config_part)
                 elif argument and configuration.has_option(profile, config_part):
@@ -379,7 +388,10 @@ class SwitchyMcSwitchRole(object):
 
             for part, value in cred_parts.items():
 
+                print("We found config update")
+                print(config_update)
                 if config_update:
+
                     if value == 'Expiration':
                         value = config_update['Credentials'][value].strftime("%Y-%m-%d %H:%M:%S+00:00")
                         configuration.set(
@@ -393,6 +405,12 @@ class SwitchyMcSwitchRole(object):
                             part,
                             config_update['Credentials'][value]
                         )
+                        print("Hey from creds")
+                        print(configuration.get(profile, part))
+        try:
+            print(configuration.options(profile))
+        except:
+            pass
 
         return configuration
 
