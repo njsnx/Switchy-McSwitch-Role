@@ -1,0 +1,63 @@
+{
+    "configuration": {
+        "aws_config": {
+            "default": {
+                "profile": {"arg": "profile", "input_text": "What is the AWS profile you would like to use for this request? "},
+                "user": {"arg": "username", "input_text": "What is the AWS username you would like to use for this request?"}
+            },
+            "config": {
+                "profile": {"arg": "profile", "input_text": "What is the AWS profile you would like to use for this request? "},
+                "last_role": {"arg": "role", "input_text": "What is the AWS role you would like to use for this request? "},
+                "account": {"arg": "account", "input_text": "What is the AWS Account number you would like to switch to?"},
+                "external_id": {"arg": "external_id"}
+            }
+        }
+    },
+    "arguments": [
+    {
+        "accept": "--profile",
+        "required": false,
+        "help": "Profile to switch from"
+    },
+    {
+        "accept": "--role",
+        "required": false,
+        "help": "Role Name to switch to"
+    },
+    {
+        "accept": "--account",
+        "required": false,
+        "help": "Account to switch to"
+    },
+    {
+        "accept": "--username",
+        "required": false,
+        "help": "Username of the user your switching from"
+    },
+    {
+        "accept": "--name",
+        "required": true,
+        "help": "What to call the new profile"
+    },
+    {
+        "accept": "--mfa",
+        "required": false,
+        "help": "MFA code to use"
+    },
+    {
+        "accept": "--all",
+        "required": false,
+        "help": "Expired profiles"
+    },
+    {
+        "accept": "--list",
+        "required": false,
+        "help": "List profiles currently available to use"
+    },
+    {
+        "accept": "--external_id",
+        "required": false,
+        "help": "External Id for the role"
+    }
+]
+}
