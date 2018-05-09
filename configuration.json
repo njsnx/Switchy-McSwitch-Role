@@ -1,5 +1,12 @@
 {
     "configuration": {
+        "credential_parts":{
+                "aws_access_key_id": "AccessKeyId",
+                "aws_secret_access_key": "SecretAccessKey",
+                "aws_security_token": "SessionToken",
+                "aws_session_token": "SessionToken",
+                "token_expiration": "Expiration"
+            },
         "aws_config": {
             "default": {
                 "profile": {"arg": "profile", "input_text": "What is the AWS profile you would like to use for this request? "},
