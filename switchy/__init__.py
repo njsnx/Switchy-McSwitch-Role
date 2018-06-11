@@ -3,6 +3,7 @@
 import boto3
 import base64
 import os
+import keyring
 import qrcode
 import argparse
 from subprocess import check_output
@@ -23,7 +24,7 @@ class MFAChameleon:
         self.serial = None
 
         if not account:
-            print("Running here")
+
             parser = argparse.ArgumentParser()
             parser.add_argument(
                 "account", type=str, help="The account to work with"
@@ -74,18 +75,19 @@ class MFAChameleon:
     def get_mfa(self, account):
         """Get MFA."""
         config, cfg = self.load_config()
+        keychain = keyring.get_password("MFAChameleon", account)
 
-        if config.has_section(account) and config.has_option(
-            account, "serial"
-        ):
-            serial = config.get(account, "serial")
-            serial = self.decrypt(serial, account)
+        if keychain:
+            serial = self.decrypt(keychain, account)
             output = check_output(
                 ["/usr/local/bin/oathtool", "--totp", "-b", serial]
             ).decode('utf-8')
             clipboard.copy(output)
 
             return output.strip('\n'), serial
+        else:
+            print("Can't find a Keychain item for {a}".format(a=account))
+        return None, None
 
     def load_config(self):
         """Load Config."""
@@ -103,15 +105,12 @@ class MFAChameleon:
     def save(self, content, account):
         """Save the config file."""
         config, location = self.load_config()
+        keychain = keyring.get_password("MFAChameleon", account)
 
-        if config.has_section(account):
-            print("Section already exists")
+        if keychain:
+            print("Keychain already exists for {a}".format(a=account))
         else:
-            config.add_section(account)
-            config.set(account, "serial", content)
-
-            with open("{}/accounts".format(location), 'w+') as fh:
-                config.write(fh)
+            keychain = keyring.set_password("MFAChameleon", account, content)
 
     def create_qr(self, serial, account):
         """Create QR Code."""
@@ -153,10 +152,12 @@ class MFAChameleon:
             encrypted = self.encrypt(serial, account)
             self.save(encrypted, account)
             mfa, serial = self.get_mfa(account)
-            self.create_qr(serial, account)
+            if mfa:
+                self.create_qr(serial, account)
 
         else:
             mfa, serial = self.get_mfa(account)
+
         return mfa
 
 if __name__ == '__main__':
